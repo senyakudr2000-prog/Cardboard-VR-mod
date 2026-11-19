@@ -1,0 +1,74 @@
+name: Build ArmVR
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Распаковать project.zip
+        run: |
+          set -euo pipefail
+          test -f project.zip || { echo "::error::project.zip не найден в корне репозитория"; exit 1; }
+          rm -rf work && mkdir work
+          unzip -q project.zip -d work
+          if [ ! -d work/tracker-app ] && [ "$(ls -1 work | wc -l)" = "1" ]; then
+            inner="work/$(ls -1 work)"
+            mv "$inner"/* work/
+          fi
+          ls -la work
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Принять лицензии Android SDK
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Скачать модели MediaPipe Pose
+        run: |
+          set -euo pipefail
+          dir=work/tracker-app/app/src/main/assets
+          mkdir -p "$dir"
+          for m in lite full heavy; do
+            curl -fL --retry 3 -o "$dir/pose_landmarker_${m}.task" \
+              "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_${m}/float16/latest/pose_landmarker_${m}.task"
+          done
+          ls -lh "$dir"
+
+      - name: Собрать приложение 1 (Трекер)
+        working-directory: work/tracker-app
+        run: gradle --no-daemon assembleDebug
+
+      - name: Собрать приложение 2 (Коннект)
+        working-directory: work/connect-app
+        run: gradle --no-daemon assembleDebug
+
+      - name: Собрать мод
+        working-directory: work/mod
+        run: gradle --no-daemon build
+
+      - name: Собрать результаты
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cp work/tracker-app/app/build/outputs/apk/debug/app-debug.apk out/ArmVR-Tracker.apk
+          cp work/connect-app/app/build/outputs/apk/debug/app-debug.apk out/ArmVR-Connect.apk
+          cp work/mod/build/libs/armvr-mod-*.jar out/
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmVR-build
+          path: out/*
+          if-no-files-found: error
