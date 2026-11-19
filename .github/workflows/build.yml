@@ -23,12 +23,17 @@ jobs:
           fi
           ls -la work
 
-      - name: Исправить обращение к переключателю предпросмотра
+      - name: Исправить совместимость исходников
         run: |
           set -euo pipefail
-          file=work/tracker-app/app/src/main/java/com/armvr/tracker/MainActivity.kt
-          sed -i 's/overlay\.showImage = c/this@MainActivity.overlay.showImage = c/' "$file"
-          grep -n 'showImage' "$file"
+          tracker=work/tracker-app/app/src/main/java/com/armvr/tracker/MainActivity.kt
+          sed -i 's/overlay\.showImage = c/this@MainActivity.overlay.showImage = c/' "$tracker"
+          grep -n 'showImage' "$tracker"
+
+          renderer=work/mod/src/main/java/com/armvr/mod/ArmRenderer.java
+          sed -i '/float pt = mc\.getDeltaTracker()\.getGameTimeDeltaPartialTick(true);/d' "$renderer"
+          sed -i 's/pl\.getPosition(pt)/pl.getPosition(1.0f)/' "$renderer"
+          grep -n 'getPosition' "$renderer"
 
       - uses: actions/setup-java@v4
         with:
