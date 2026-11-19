@@ -23,13 +23,11 @@ jobs:
           fi
           ls -la work
 
-      - name: Исправить переключатель предпросмотра камеры
+      - name: Исправить обращение к переключателю предпросмотра
         run: |
           set -euo pipefail
-          file=work/tracker-app/app/src/main/java/com/armvr/tracker/OverlayView.kt
-          if ! grep -q 'var showImage' "$file"; then
-            sed -i '/class OverlayView(context: Context) : View(context) {/a\\    var showImage = true' "$file"
-          fi
+          file=work/tracker-app/app/src/main/java/com/armvr/tracker/MainActivity.kt
+          sed -i 's/overlay\.showImage = c/this@MainActivity.overlay.showImage = c/' "$file"
           grep -n 'showImage' "$file"
 
       - uses: actions/setup-java@v4
