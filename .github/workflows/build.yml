@@ -23,6 +23,15 @@ jobs:
           fi
           ls -la work
 
+      - name: Исправить переключатель предпросмотра камеры
+        run: |
+          set -euo pipefail
+          file=work/tracker-app/app/src/main/java/com/armvr/tracker/OverlayView.kt
+          if ! grep -q 'var showImage' "$file"; then
+            sed -i '/class OverlayView(context: Context) : View(context) {/a\\    var showImage = true' "$file"
+          fi
+          grep -n 'showImage' "$file"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
